@@ -1,0 +1,28 @@
+{
+  "name": "easyrtc",
+  "version": "1.0.0",
+  "description": "description here",
+  "main": "index.js",
+  "scripts": {
+    "serve": "node src/serve.js",
+    "test": "test here"
+  },
+  "repository": {
+    "type": "git",
+    "url": "repo here"
+  },
+  "keywords": [
+    "javascript",
+    "node",
+    "webrtc",
+    "video",
+    "chat",
+    "realtime"
+  ],
+  "author": "James Johnson",
+  "license": "ISC",
+  "devDependencies": {
+    "express": "^4.17.1",
+    "socket.io": "^2.3.0"
+  }
+}
