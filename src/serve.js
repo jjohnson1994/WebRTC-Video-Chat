@@ -13,24 +13,17 @@ app.get('/easyRTC.js', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('user_join', ({ scp }) => {
-    roomMembers.push({ clientId: socket.id, scp });
-    io.emit('room_members_updated', roomMembers);
+  socket.on('iceCandidate', candidate => {
+    socket.broadcast.emit('iceCandidate', candidate);
   });
 
-  socket.on('user_leave', () => {
-    roomMembers = roomMembers.filter(({ clientId }) => clientId !== socket.id);
-    io.emit('room_members_updated', roomMembers);
+  socket.on('offer', offer => {
+    socket.broadcast.emit('offer', offer);
   });
 
-  socket.on('disconnect', () => {
-    roomMembers = roomMembers.filter(({ clientId }) => clientId !== socket.id);
-    io.emit('room_members_updated', roomMembers);
-  });
-
-  socket.on('candidate', candidate => {
-    io.emit('candidate', { clientId: socket.id, candidate }); 
-  });
+  socket.on('answer', answer => {
+    socket.broadcast.emit('answer', answer);
+  })
 });
 
 http.listen(3000, () => {

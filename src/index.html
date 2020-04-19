@@ -33,16 +33,19 @@
 
       const socketInterface = {
         on: (event, data) => {
-          socket.emit(event, data);
+          switch(event) {
+            case 'iceCandidate':
+              socket.emit('iceCandidate', data);
+            case 'offer':
+              socket.emit('offer', data);
+            case 'answer':
+              socket.emit('answer', data);
+          }
         },
-        listen: ({ callback, callback1 }) => {
-          socket.on('event', data => {
-            callback(data);
-          });
-
-          socket.on('event1', data => {
-            callback1(data);
-          });
+        listen: ({ iceCandidate, offer, answer }) => {
+          socket.on('iceCandidate', iceCandidate);
+          socket.on('offer', offer);
+          socket.on('answer', answer)
         },
       };
 
