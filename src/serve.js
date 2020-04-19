@@ -13,16 +13,25 @@ app.get('/easyRTC.js', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-  socket.on('iceCandidate', candidate => {
-    socket.broadcast.emit('iceCandidate', candidate);
+  socket.on('iceCandidate', iceCandidate => {
+    socket.broadcast.emit('iceCandidate', {
+      clientId: socket.id,
+      iceCandidate,
+    });
   });
 
   socket.on('offer', offer => {
-    socket.broadcast.emit('offer', offer);
+    socket.broadcast.emit('offer', {
+      clientId: socket.id,
+      offer,
+    });
   });
 
   socket.on('answer', answer => {
-    socket.broadcast.emit('answer', answer);
+    socket.broadcast.emit('answer', {
+      clientId: socket.io,
+      answer,
+    });
   })
 });
 

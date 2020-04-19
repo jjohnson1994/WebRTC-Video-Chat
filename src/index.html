@@ -42,10 +42,18 @@
               socket.emit('answer', data);
           }
         },
-        listen: ({ iceCandidate, offer, answer }) => {
-          socket.on('iceCandidate', iceCandidate);
-          socket.on('offer', offer);
-          socket.on('answer', answer)
+        listen: ({ onIceCandidate, onOffer, onAnswer }) => {
+          socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
+            onIceCandidate(clientId, iceCandidate);
+          });
+
+          socket.on('offer', ({ clientId, offer }) => {
+            onOffer(clientId, offer);
+          });
+
+          socket.on('answer', ({ clientId, answer }) => {
+            onAnswer(clientId, answer);
+          });
         },
       };
 

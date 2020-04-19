@@ -40,7 +40,7 @@ function EasyRTC(socketInterface) {
     async initVideoSession({ remoteVideoContainer, audio = true, video = true  }) {
       socketInterface
         .listen({
-          iceCandidate: candidate => {
+          onIceCandidate: (clientId, candidate) => {
             console.log('recieved candidate', candidate);
             try {
               peerConnection.addIceCandidate(candidate);
@@ -48,7 +48,7 @@ function EasyRTC(socketInterface) {
               console.error('on candidate error', error);
             }
           },
-          offer: async (offer) => {
+          onOffer: async (clientId, offer) => {
             console.log('recieved offer', offer);
             try {
               await peerConnection.setRemoteDescription(offer);
@@ -61,7 +61,7 @@ function EasyRTC(socketInterface) {
               console.error('on offer errror', error);
             }
           },
-          answer: answer => {
+          onAnswer: (clientId, answer) => {
             console.log('recieve answer', answer);
             try {
               peerConnection.setRemoteDescription(answer);
@@ -84,6 +84,7 @@ function EasyRTC(socketInterface) {
 
       peerConnection.addEventListener('track', event => {
         console.log('got tracks', event);
+        console.log('src', remoteVideoContainer.srcObject);
         if (remoteVideoContainer.srcObject !== event.streams[0]) {
           remoteVideoContainer.srcObject = event.streams[0];
           console.log('pc2 received remote stream');
