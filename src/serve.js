@@ -8,6 +8,10 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
 
+app.get('/easyRTC.js', (req, res) => {
+  res.sendFile(__dirname + '/easyRTC.js');
+});
+
 io.on('connection', (socket) => {
   socket.on('user_join', ({ scp }) => {
     roomMembers.push({ clientId: socket.id, scp });

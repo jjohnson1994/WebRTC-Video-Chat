@@ -6,115 +6,57 @@
   <body>
     <main>
       <div class="controlls">
-        <button id="btnJoin">Join</button>
-        <button id="btnDisconnect">Disconnect</button>
-        <span id="lblClientId" />
+        <button id="btnStart">Start</button>
+        <button id="btnCall">Call</button>
+        <button id="btnHangup">Hangup</button>
+        <select id="sdpSemantics">
+          <option selected value="">Default</option>
+          <option value="unified-plan">Unified Plan</option>
+          <option value="plan-b">Plan B</option>
+        </select>
       </div>
       <div id="videos">
-        <video id="localVideo" />
-        <video id="remoteVideo" />
+        <video id="localVideo" playinline autoplay muted></video>
+        <video id="remoteVideo" playinline autoplay></video>
       </div>
     </main>
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/easyRTC.js"></script>
     <script>
+      const socket = io();
       const configuration = {
         iceServers: [{
           urls: 'stun:stun.l.google.com:19302'
         }]
       };
-      const socket = io();
 
-      const btnJoin = document.querySelector('#btnJoin'); 
-      const btnDisconnect = document.querySelector('#btnDisconnect'); 
-      const lblClientId = document.querySelector('#lblClientId');
-      const localVideo = document.querySelector('#localVideo');
-      const remoteVideo = document.querySelector('#remoteVideo');
+      const btnStart = document.getElementById('btnStart');
+      const btnCall = document.getElementById('btnCall');
+      const btnHangup = document.getElementById('btnHangup');
 
-      let roomMembers = [];
-      let peerConnection1;
-      let peerConnection2;
-
-      btnJoin.addEventListener('click', () => {
-        btnJoin.disabled = true;
-        btnDisconnect.disabled = false;
-
-        lblClientId.innerHTML = socket.id;
-
-        const isOffering = true; //roomMembers.length === 2;
-        startWebRTC(isOffering);
+      const localVideo = document.getElementById('localVideo');
+      const remoteVideo = document.getElementById('remoteVideo');
+      
+      btnStart.addEventListener('click', () => {
+        btnStart.disabled = true;
+        easyRTC.initLocalMediaStream(localVideo);
       });
 
-      btnDisconnect.addEventListener('click', () => {
-        btnJoin.disabled = false;
-        btnDisconnect.disabled = true;
-
-        socket.emit('user_leave', { clientId: socket.id });
-        lblClientId.innerHTML = '';
+      btnCall.addEventListener('click', () => {
+        easyRTC.initVideoSession({
+          roomName: '', // TODO implement rooms
+          localVideoContainer: localVideo,
+          remoteVideoContainer: remoteVideo,
+        });
       });
 
-      socket.on('candidate', ({ clientId, candidate }) => {
-        console.log({ clientId, candidate });
-        if (clientId === socket.id) {
-          return;
-        }
+      btnHangup.addEventListener('click', () => {
+        btnHangup.disabled = true;
+        btnCall.disabled = false;
 
-        peerConnection.addIceCandidate(
-          new RTCIceCandidate(candidate),
-          () => {
-            console.log('success')
-          },
-          error => {
-            console.error(error);
-          },
-        );
+        easyRTC.endCall();
       });
-
-      socket.on('room_members_updated', _roomMembers => {
-        roomMembers = _roomMembers;
-        console.log(roomMembers);
-      });
-
-      function startWebRTC(isOffering) {
-        peerConnection = new RTCPeerConnection(configuration);
-
-        // 'onicecandidate' notifies us whenever an ICE agent needs to deliver a
-        // message to the other peer through the signaling server
-        peerConnection.onicecandidate = event => {
-          if (event.candidate) {
-            socket.emit('candidate', event.candidate);
-          }
-        };
-
-        if (isOffering) {
-          peerConnection.onnegotiationneeded = () => {
-            peerConnection
-              .createOffer()
-              .then(() => {
-                peerConnection.setLocalDescription(desc => {
-                  console.log('emit')
-                  socket.emit('user_join', { scp: peerConnection.localDescription });
-                });
-              })
-              .catch(console.error);
-          }
-        }
-
-        // When a remote stream arrives display it in the #remoteVideo element
-        peerConnection.onaddstream = event => {
-          remoteVideo.srcObject = event.stream;
-        };
-
-        navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: true,
-        }).then(stream => {
-          // Display your local video in #localVideo element
-          localVideo.srcObject = stream;
-          // Add your stream to be sent to the conneting peer
-          peerConnection.addStream(stream);
-        }, console.error);
-      }
     </script>
   </body>
 </html>
