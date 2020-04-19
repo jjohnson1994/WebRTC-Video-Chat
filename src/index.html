@@ -31,6 +31,21 @@
         }]
       };
 
+      const socketInterface = {
+        on: (event, data) => {
+          socket.emit(event, data);
+        },
+        listen: ({ callback, callback1 }) => {
+          socket.on('event', data => {
+            callback(data);
+          });
+
+          socket.on('event1', data => {
+            callback1(data);
+          });
+        },
+      };
+
       const btnStart = document.getElementById('btnStart');
       const btnCall = document.getElementById('btnCall');
       const btnHangup = document.getElementById('btnHangup');
@@ -38,14 +53,18 @@
       const localVideo = document.getElementById('localVideo');
       const remoteVideo = document.getElementById('remoteVideo');
       
+      const easyRTC = new EasyRTC(socketInterface);
+
       btnStart.addEventListener('click', () => {
         btnStart.disabled = true;
         easyRTC.initLocalMediaStream(localVideo);
       });
 
       btnCall.addEventListener('click', () => {
+        btnCall.disabled = true;
+        btnHangup.disabled = false;
+
         easyRTC.initVideoSession({
-          roomName: '', // TODO implement rooms
           localVideoContainer: localVideo,
           remoteVideoContainer: remoteVideo,
         });
