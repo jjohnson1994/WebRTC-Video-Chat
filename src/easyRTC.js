@@ -3,73 +3,59 @@ const ICE_SERVERS = [{
   urls: 'stun:stun.l.google.com:19302',
 }];
 
-function EasyRTC(socketInterface) {
+function EasyRTC(localVideoContainer, remoteVideoContainer) {
   let localStream;
   let peerConnection;
-  let removePeerConnection;
 
-  let _localVideoContainer, _remoteVideoContainer;
+  const initLocalMediaStream = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: true,
+      });
+
+      localVideoContainer.srcObject = stream;
+      localStream = stream;
+    } catch (error) {
+      console.error('Error getting user media devices', error);
+    }
+  };
 
   return ({
-    initLocalMediaStream(localVideoContainer) {
-      return new Promise(async (resolve, reject) => {
-        try {
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true,
-            video: true,
-          });
+    async init(socketInterface) {
+      await initLocalMediaStream();
 
-          localVideoContainer.srcObject = stream;
-          localStream = stream;
+      socketInterface.listen({
+        onOffer: async (clientId, offer) => {
+          console.log('recieved offer', offer);
+          try {
+            await peerConnection.setRemoteDescription(offer);
 
-          resolve(stream);
-        } catch (e) {
-          reject(error);
-        } 
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+
+            socketInterface.emit('answer', peerConnection.localDescription);
+          } catch (error) {
+            console.error('on offer errror', error);
+          }
+        },
+        onAnswer: (clientId, answer) => {
+          console.log('recieve answer', answer);
+          try {
+            peerConnection.setRemoteDescription(answer);
+          } catch(error) {
+            console.error('on answer error', error);
+          }
+        },
+        onIceCandidate: (clientId, candidate) => {
+          console.log('recieved candidate', candidate);
+          try {
+            peerConnection.addIceCandidate(candidate);
+          } catch (error) {
+            console.error('on candidate error', error);
+          }
+        },
       });
-    },
-
-    /**
-     * Join a room and start video
-     * @param {object} videoSessionOptions
-     * @param {object} videoSessionOptions.socketInterface
-     * @param {domnode} videoSessionOptions.remoteVideoContainer
-     * @param {boolean} videoSessionOptions.audio
-     * @param {boolean} videoSessionOptions.video
-     */
-    async initVideoSession({ remoteVideoContainer, audio = true, video = true  }) {
-      socketInterface
-        .listen({
-          onIceCandidate: (clientId, candidate) => {
-            console.log('recieved candidate', candidate);
-            try {
-              peerConnection.addIceCandidate(candidate);
-            } catch (error) {
-              console.error('on candidate error', error);
-            }
-          },
-          onOffer: async (clientId, offer) => {
-            console.log('recieved offer', offer);
-            try {
-              await peerConnection.setRemoteDescription(offer);
-
-              const answer = await peerConnection.createAnswer();
-              await peerConnection.setLocalDescription(answer);
-
-              socketInterface.on('answer', peerConnection.localDescription);
-            } catch (error) {
-              console.error('on offer errror', error);
-            }
-          },
-          onAnswer: (clientId, answer) => {
-            console.log('recieve answer', answer);
-            try {
-              peerConnection.setRemoteDescription(answer);
-            } catch(error) {
-              console.error('on answer error', error);
-            }
-          },
-        });
 
       peerConnection = new RTCPeerConnection({
         iceServers: ICE_SERVERS,
@@ -80,7 +66,7 @@ function EasyRTC(socketInterface) {
       const description = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(description);
 
-      socketInterface.on('offer', peerConnection.localDescription);
+      socketInterface.emit('offer', peerConnection.localDescription);
 
       peerConnection.addEventListener('track', event => {
         console.log('got tracks', event);
@@ -91,11 +77,5 @@ function EasyRTC(socketInterface) {
         }
       });
     },
-
-    endCall() {
-      peerConnection.close();
-
-      peerConnection = null;
-    }
   });
 }

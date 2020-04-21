@@ -5,16 +5,6 @@
   </head>
   <body>
     <main>
-      <div class="controlls">
-        <button id="btnStart">Start</button>
-        <button id="btnCall">Call</button>
-        <button id="btnHangup">Hangup</button>
-        <select id="sdpSemantics">
-          <option selected value="">Default</option>
-          <option value="unified-plan">Unified Plan</option>
-          <option value="plan-b">Plan B</option>
-        </select>
-      </div>
       <div id="videos">
         <video id="localVideo" playinline autoplay muted></video>
         <video id="remoteVideo" playinline autoplay></video>
@@ -25,24 +15,14 @@
     <script src="/easyRTC.js"></script>
     <script>
       const socket = io();
-      const configuration = {
-        iceServers: [{
-          urls: 'stun:stun.l.google.com:19302'
-        }]
-      };
 
-      const socketInterface = {
-        on: (event, data) => {
-          switch(event) {
-            case 'iceCandidate':
-              socket.emit('iceCandidate', data);
-            case 'offer':
-              socket.emit('offer', data);
-            case 'answer':
-              socket.emit('answer', data);
-          }
-        },
-        listen: ({ onIceCandidate, onOffer, onAnswer }) => {
+      const localVideo = document.getElementById('localVideo');
+      const remoteVideo = document.getElementById('remoteVideo');
+      
+      const easyRTC = new EasyRTC(localVideo, remoteVideo);
+
+      easyRTC.init({
+        listen: ({ onOffer, onAnswer, onIceCandidate }) => {
           socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
             onIceCandidate(clientId, iceCandidate);
           });
@@ -55,37 +35,9 @@
             onAnswer(clientId, answer);
           });
         },
-      };
-
-      const btnStart = document.getElementById('btnStart');
-      const btnCall = document.getElementById('btnCall');
-      const btnHangup = document.getElementById('btnHangup');
-
-      const localVideo = document.getElementById('localVideo');
-      const remoteVideo = document.getElementById('remoteVideo');
-      
-      const easyRTC = new EasyRTC(socketInterface);
-
-      btnStart.addEventListener('click', () => {
-        btnStart.disabled = true;
-        easyRTC.initLocalMediaStream(localVideo);
-      });
-
-      btnCall.addEventListener('click', () => {
-        btnCall.disabled = true;
-        btnHangup.disabled = false;
-
-        easyRTC.initVideoSession({
-          localVideoContainer: localVideo,
-          remoteVideoContainer: remoteVideo,
-        });
-      });
-
-      btnHangup.addEventListener('click', () => {
-        btnHangup.disabled = true;
-        btnCall.disabled = false;
-
-        easyRTC.endCall();
+        emit: (event, data) => {
+          socket.emit(event, data);
+        },
       });
     </script>
   </body>
