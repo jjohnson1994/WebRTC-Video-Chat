@@ -19,25 +19,34 @@
       const localVideo = document.getElementById('localVideo');
       const remoteVideo = document.getElementById('remoteVideo');
       
-      const easyRTC = new EasyRTC(localVideo, remoteVideo);
+      const easyRTC = new EasyRTC(
+        localVideo,
+        remoteVideo,
+        {
+          listen: ({ onOffer, onAnswer, onIceCandidate }) => {
+            socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
+              onIceCandidate(clientId, iceCandidate);
+            });
 
-      easyRTC.init({
-        listen: ({ onOffer, onAnswer, onIceCandidate }) => {
-          socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
-            onIceCandidate(clientId, iceCandidate);
-          });
+            socket.on('offer', ({ clientId, offer }) => {
+              onOffer(clientId, offer);
+            });
 
-          socket.on('offer', ({ clientId, offer }) => {
-            onOffer(clientId, offer);
-          });
-
-          socket.on('answer', ({ clientId, answer }) => {
-            onAnswer(clientId, answer);
-          });
+            socket.on('answer', ({ clientId, answer }) => {
+              onAnswer(clientId, answer);
+            });
+          },
+          emit: (event, data) => {
+            socket.emit(event, data);
+          },
         },
-        emit: (event, data) => {
-          socket.emit(event, data);
-        },
+      );
+
+      easyRTC.init();
+
+      socket.on('userJoinedRoom', ({ clientId }) => {
+        // TODO send offer here
+        easyRTC.sendOfferToClient(clientId);
       });
     </script>
   </body>

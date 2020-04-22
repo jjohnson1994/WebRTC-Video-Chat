@@ -3,9 +3,9 @@ const ICE_SERVERS = [{
   urls: 'stun:stun.l.google.com:19302',
 }];
 
-function EasyRTC(localVideoContainer, remoteVideoContainer) {
+function EasyRTC(localVideoContainer, remoteVideoContainer, socketInterface) {
   let localStream;
-  let peerConnection;
+  let peerConnections = {};
 
   const initLocalMediaStream = async () => {
     try {
@@ -21,14 +21,47 @@ function EasyRTC(localVideoContainer, remoteVideoContainer) {
     }
   };
 
+  const newClientPeerConnection = async clientId => {
+    const peerConnection = new RTCPeerConnection({
+      iceServers: ICE_SERVERS,
+    });
+
+    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+  
+    peerConnection.addEventListener('track', event => {
+      console.log('got tracks');
+      if (remoteVideoContainer.srcObject !== event.streams[0]) {
+        remoteVideoContainer.srcObject = event.streams[0];
+      }
+    });
+
+    peerConnections[clientId] = peerConnection;
+    return peerConnections[clientId];
+  };
+
+  const sendOfferToClient = async clientId => {
+    const peerConnection = await newClientPeerConnection(clientId);
+    const description = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(description);
+
+    console.log(`send offer to ${clientId}`)
+
+    // TODO Bug fix, offers are sent before clients 'offer listener' is initialized
+    window.setTimeout(() => {
+      socketInterface.emit('offer', peerConnection.localDescription);
+    }, 1000);
+  };
+
   return ({
-    async init(socketInterface) {
+    sendOfferToClient,
+    async init() {
       await initLocalMediaStream();
 
       socketInterface.listen({
         onOffer: async (clientId, offer) => {
-          console.log('recieved offer', offer);
+          console.log(`recieved offer from ${clientId}`)
           try {
+            const peerConnection = await newClientPeerConnection(clientId);
             await peerConnection.setRemoteDescription(offer);
 
             const answer = await peerConnection.createAnswer();
@@ -40,41 +73,24 @@ function EasyRTC(localVideoContainer, remoteVideoContainer) {
           }
         },
         onAnswer: (clientId, answer) => {
-          console.log('recieve answer', answer);
+          console.log(`recieved answer from ${clientId}`)
           try {
+            console.log(peerConnections);
+            const peerConnection = peerConnections[clientId];
             peerConnection.setRemoteDescription(answer);
           } catch(error) {
             console.error('on answer error', error);
           }
         },
         onIceCandidate: (clientId, candidate) => {
-          console.log('recieved candidate', candidate);
+          console.log(`recieved ice candidate from ${clientId}`)
           try {
+            const peerConnections = peerConnections[clientId];
             peerConnection.addIceCandidate(candidate);
           } catch (error) {
             console.error('on candidate error', error);
           }
         },
-      });
-
-      peerConnection = new RTCPeerConnection({
-        iceServers: ICE_SERVERS,
-      });
-
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-      const description = await peerConnection.createOffer();
-      await peerConnection.setLocalDescription(description);
-
-      socketInterface.emit('offer', peerConnection.localDescription);
-
-      peerConnection.addEventListener('track', event => {
-        console.log('got tracks', event);
-        console.log('src', remoteVideoContainer.srcObject);
-        if (remoteVideoContainer.srcObject !== event.streams[0]) {
-          remoteVideoContainer.srcObject = event.streams[0];
-          console.log('pc2 received remote stream');
-        }
       });
     },
   });

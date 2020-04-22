@@ -11,6 +11,11 @@ app.get('/easyRTC.js', (req, res) => {
 });
 
 io.on('connection', (socket) => {
+
+  socket.broadcast.emit('userJoinedRoom', {
+    clientId: socket.id,
+  });
+
   socket.on('iceCandidate', iceCandidate => {
     socket.broadcast.emit('iceCandidate', {
       clientId: socket.id,
@@ -27,7 +32,7 @@ io.on('connection', (socket) => {
 
   socket.on('answer', answer => {
     socket.broadcast.emit('answer', {
-      clientId: socket.io,
+      clientId: socket.id,
       answer,
     });
   });
