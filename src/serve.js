@@ -36,6 +36,12 @@ io.on('connection', (socket) => {
       answer,
     });
   });
+
+  socket.on('disconnect', () => {
+    socket.broadcast.emit('userLeftRoom', {
+      clientId: socket.id,
+    });
+  });
 });
 
 http.listen(3000, () => {

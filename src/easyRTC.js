@@ -3,7 +3,7 @@ const ICE_SERVERS = [{
   urls: 'stun:stun.l.google.com:19302',
 }];
 
-function EasyRTC(localVideoContainer, remoteVideoContainer, socketInterface) {
+function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
   let localStream;
   let peerConnections = {};
 
@@ -30,8 +30,20 @@ function EasyRTC(localVideoContainer, remoteVideoContainer, socketInterface) {
   
     peerConnection.addEventListener('track', event => {
       console.log('got tracks');
-      if (remoteVideoContainer.srcObject !== event.streams[0]) {
-        remoteVideoContainer.srcObject = event.streams[0];
+      let videoContainer = document.querySelector(`video#remoteVideo${clientId}`);
+      if (!videoContainer) {
+        videoContainer = document.createElement('video');
+
+        videoContainer.id = `remoteVideo${clientId}`;
+        videoContainer.setAttribute('playinline', true);
+        videoContainer.setAttribute('muted', true);
+        videoContainer.setAttribute('autoplay', true);
+
+        remotesContainer.appendChild(videoContainer);
+      }
+
+      if (videoContainer.srcObject !== event.streams[0]) {
+        videoContainer.srcObject = event.streams[0];
       }
     });
 
@@ -52,8 +64,22 @@ function EasyRTC(localVideoContainer, remoteVideoContainer, socketInterface) {
     }, 1000);
   };
 
+  const closeClientConnection = async clientId => {
+    const videoContainer = document.querySelector(`video#remoteVideo${clientId}`);
+    if (videoContainer) {
+      videoContainer.remove();
+    }
+
+    const peerConnection = peerConnections[clientId];
+    if (peerConnection) {
+      peerConnection.close();
+      delete peerConnections.clientId;
+    }
+  };
+
   return ({
     sendOfferToClient,
+    closeClientConnection,
     async init() {
       await initLocalMediaStream();
 

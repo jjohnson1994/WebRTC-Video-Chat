@@ -7,7 +7,8 @@
     <main>
       <div id="videos">
         <video id="localVideo" playinline autoplay muted></video>
-        <video id="remoteVideo" playinline autoplay></video>
+        <div id="remotesContainer"></div>
+        <!-- <video id="remoteVideo" playinline autoplay></video> -->
       </div>
     </main>
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
@@ -21,7 +22,7 @@
       
       const easyRTC = new EasyRTC(
         localVideo,
-        remoteVideo,
+        remotesContainer,
         {
           listen: ({ onOffer, onAnswer, onIceCandidate }) => {
             socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
@@ -45,8 +46,11 @@
       easyRTC.init();
 
       socket.on('userJoinedRoom', ({ clientId }) => {
-        // TODO send offer here
         easyRTC.sendOfferToClient(clientId);
+      });
+
+      socket.on('userLeftRoom', ({ clientId }) => {
+        easyRTC.closeClientConnection(clientId);
       });
     </script>
   </body>
