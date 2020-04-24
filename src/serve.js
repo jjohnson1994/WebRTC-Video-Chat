@@ -23,8 +23,8 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('offer', offer => {
-    socket.broadcast.emit('offer', {
+  socket.on('offer', ({ offerTo, offer }) => {
+    io.to(offerTo).emit('offer', {
       clientId: socket.id,
       offer,
     });

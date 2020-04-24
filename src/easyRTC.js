@@ -58,10 +58,12 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
     const description = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(description);
 
-
     // TODO Bug fix, offers are sent before clients 'offer listener' is initialized
     window.setTimeout(() => {
-      socketInterface.emit('offer', peerConnection.localDescription);
+      socketInterface.emit('offer', {
+        offerTo: clientId,
+        offer: peerConnection.localDescription,
+      });
     }, 1000);
   };
 
@@ -86,7 +88,6 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
 
       socketInterface.listen({
         onOffer: async (clientId, offer) => {
-          if (peerConnections[clientId]) return;
           console.log(`recieved offer from ${clientId}`)
           try {
             const peerConnection = await newClientPeerConnection(clientId);
@@ -106,7 +107,6 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
         },
         onAnswer: (clientId, answer) => {
           console.log(`recieved answer from ${clientId}`);
-          if (peerAnswers[clientId] === true) return;
           peerAnswers[clientId] = true;
           try {
             const peerConnection = peerConnections[clientId];
