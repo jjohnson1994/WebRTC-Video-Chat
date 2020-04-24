@@ -38,6 +38,7 @@
             });
           },
           emit: (event, data) => {
+            document.title = socket.id;
             socket.emit(event, data);
           },
         },

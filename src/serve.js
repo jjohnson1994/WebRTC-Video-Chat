@@ -30,8 +30,8 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on('answer', answer => {
-    socket.broadcast.emit('answer', {
+  socket.on('answer', ({ answerTo, answer }) => {
+    io.to(answerTo).emit('answer', {
       clientId: socket.id,
       answer,
     });

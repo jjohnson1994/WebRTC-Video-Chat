@@ -6,6 +6,7 @@ const ICE_SERVERS = [{
 function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
   let localStream;
   let peerConnections = {};
+  let peerAnswers = {};
 
   const initLocalMediaStream = async () => {
     try {
@@ -29,7 +30,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
     localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
   
     peerConnection.addEventListener('track', event => {
-      console.log('got tracks');
+      console.log(`recieved tracks from ${clientId}`);
       let videoContainer = document.querySelector(`video#remoteVideo${clientId}`);
       if (!videoContainer) {
         videoContainer = document.createElement('video');
@@ -52,11 +53,11 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
   };
 
   const sendOfferToClient = async clientId => {
+    console.log(`send offer to ${clientId}`);
     const peerConnection = await newClientPeerConnection(clientId);
     const description = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(description);
 
-    console.log(`send offer to ${clientId}`)
 
     // TODO Bug fix, offers are sent before clients 'offer listener' is initialized
     window.setTimeout(() => {
@@ -85,6 +86,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
 
       socketInterface.listen({
         onOffer: async (clientId, offer) => {
+          if (peerConnections[clientId]) return;
           console.log(`recieved offer from ${clientId}`)
           try {
             const peerConnection = await newClientPeerConnection(clientId);
@@ -93,15 +95,20 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            socketInterface.emit('answer', peerConnection.localDescription);
+            console.log(`send answer to ${clientId}`);
+            socketInterface.emit('answer', {
+              answerTo: clientId,
+              answer: peerConnection.localDescription
+            });
           } catch (error) {
             console.error('on offer errror', error);
           }
         },
         onAnswer: (clientId, answer) => {
-          console.log(`recieved answer from ${clientId}`)
+          console.log(`recieved answer from ${clientId}`);
+          if (peerAnswers[clientId] === true) return;
+          peerAnswers[clientId] = true;
           try {
-            console.log(peerConnections);
             const peerConnection = peerConnections[clientId];
             peerConnection.setRemoteDescription(answer);
           } catch(error) {
