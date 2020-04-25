@@ -6,7 +6,6 @@ const ICE_SERVERS = [{
 function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
   let localStream;
   let peerConnections = {};
-  let peerAnswers = {};
 
   const initLocalMediaStream = async () => {
     try {
@@ -17,6 +16,46 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
 
       localVideoContainer.srcObject = stream;
       localStream = stream;
+    } catch (error) {
+      console.error('Error getting user media devices', error);
+    }
+  };
+
+  const switchPeerTracks = localStream => {
+    const tracks = localStream.getTracks();
+
+    console.log({ tracks });
+
+    for (const [key, peer] of Object.entries(peerConnections)) {
+      tracks.forEach(track => {
+        const sender = peer.getSenders().find(function(s) {
+          return s.track.kind == track.kind;
+        });
+
+        console.log({ sender });
+        sender.replaceTrack(track);
+      });
+    }
+  };
+
+  const toggleScreenShare = async (enabled) => {
+    console.log('startScreenShare', enabled);
+    try {
+      let stream;
+
+      if (enabled === false) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: true,
+        });
+      } else if (navigator.mediaDevices.getDisplayMedia) {
+        stream = await navigator.mediaDevices.getDisplayMedia({video: true});
+      }
+
+      localVideoContainer.srcObject = stream;
+      localStream = stream;
+
+      switchPeerTracks(localStream);
     } catch (error) {
       console.error('Error getting user media devices', error);
     }
@@ -55,16 +94,20 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
   const sendOfferToClient = async clientId => {
     console.log(`send offer to ${clientId}`);
     const peerConnection = await newClientPeerConnection(clientId);
-    const description = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(description);
 
-    // TODO Bug fix, offers are sent before clients 'offer listener' is initialized
-    window.setTimeout(() => {
-      socketInterface.emit('offer', {
-        offerTo: clientId,
-        offer: peerConnection.localDescription,
-      });
-    }, 1000);
+    peerConnection.onnegotiationneeded = async event => {
+      console.log('negotiatin needed', event);
+      const description = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(description);
+
+      // TODO Bug fix, offers are sent before clients 'offer listener' is initialized
+      window.setTimeout(() => {
+        socketInterface.emit('offer', {
+          offerTo: clientId,
+          offer: peerConnection.localDescription,
+        });
+      }, 1000);
+    };
   };
 
   const closeClientConnection = async clientId => {
@@ -82,6 +125,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
 
   return ({
     sendOfferToClient,
+    toggleScreenShare,
     closeClientConnection,
     async init() {
       await initLocalMediaStream();
@@ -97,6 +141,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
             await peerConnection.setLocalDescription(answer);
 
             console.log(`send answer to ${clientId}`);
+
             socketInterface.emit('answer', {
               answerTo: clientId,
               answer: peerConnection.localDescription
@@ -107,7 +152,6 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
         },
         onAnswer: (clientId, answer) => {
           console.log(`recieved answer from ${clientId}`);
-          peerAnswers[clientId] = true;
           try {
             const peerConnection = peerConnections[clientId];
             peerConnection.setRemoteDescription(answer);

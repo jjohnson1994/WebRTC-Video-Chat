@@ -5,12 +5,61 @@
   </head>
   <body>
     <main>
-      <div id="videos">
+      <div id="remotesContainer">
         <video id="localVideo" playinline autoplay muted></video>
-        <div id="remotesContainer"></div>
-        <!-- <video id="remoteVideo" playinline autoplay></video> -->
       </div>
     </main>
+    <nav>
+      <span>
+        <input id="edtNewMessage" type="text">
+        <button id="btnSendMessage">Send</button>
+      </span>
+      <label><input id="chkScreenShare" type="checkbox" onclick="toggleScreenShare()"/>ScreenShare</label>
+    </nav>
+    <style>
+      :root {
+        --main-bg-color: #0d0b13;
+        --nav-bg-color: #607D8B;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        margin: 0;
+        background-color: var(--main-bg-color);
+      }
+
+      nav {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        height: 64px;
+        padding: 8px;
+        background-color: var(--nav-bg-color);
+      }
+
+      main {
+        padding: 8px;
+        flex-grow: 1;
+      }
+
+      #remotesContainer {
+        display: grid;
+        grid-template-rows: auto;
+        grid-template-columns: repeat(3, 33%);
+        grid-gap: 8px;
+      }
+
+      video {
+        width: 100%;
+      }
+    </style>
     <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/easyRTC.js"></script>
@@ -53,6 +102,11 @@
       socket.on('userLeftRoom', ({ clientId }) => {
         easyRTC.closeClientConnection(clientId);
       });
+
+      function toggleScreenShare() {
+        const sharing = document.querySelector('#chkScreenShare').checked;
+        easyRTC.toggleScreenShare(sharing);
+      }
     </script>
   </body>
 </html>
