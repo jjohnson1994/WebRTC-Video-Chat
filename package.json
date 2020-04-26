@@ -1,8 +1,8 @@
 {
   "name": "easyrtc",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "description": "description here",
-  "main": "index.js",
+  "main": "./main/easyRTC.js",
   "scripts": {
     "serve": "node src/serve.js",
     "test": "test here"

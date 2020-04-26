@@ -3,59 +3,54 @@ const ICE_SERVERS = [{
   urls: 'stun:stun.l.google.com:19302',
 }];
 
-function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
+function cameraSource() {
+  return navigator.mediaDevices.getUserMedia({
+    audio: true,
+    video: true,
+  });
+}
+
+function screenShareSource() {
+  return navigator.mediaDevices.getDisplayMedia({video: true});
+};
+
+function replacePeerTracks(peerConnections, localStream) {
+  const tracks = localStream.getTracks();
+
+  for (const [key, peer] of Object.entries(peerConnections)) {
+    for(const track of tracks) {
+      const sender = peer.getSenders().find(function(s) {
+        return s.track.kind == track.kind;
+      });
+
+      sender.replaceTrack(track);
+    };
+  }
+}
+
+function createVideoNode(id, parent) {
+  const videoNode = document.createElement('video');
+
+  videoNode.id = `remoteVideo${id}`;
+  videoNode.setAttribute('playinline', true);
+  videoNode.setAttribute('muted', true);
+  videoNode.setAttribute('autoplay', true);
+
+  parent.appendChild(videoNode);
+
+  return videoNode;
+}
+
+function EasyRTC(localVideoContainer, remotesContainer, socketInterface, consoleLogs = false) {
   let localStream;
   let peerConnections = {};
 
-  const initLocalMediaStream = async () => {
+  const toggleScreenShare = async enabled => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true,
-      });
+      localStream = enabled ? await screenShareSource() : await cameraSource();
+      localVideoContainer.srcObject = localStream;
 
-      localVideoContainer.srcObject = stream;
-      localStream = stream;
-    } catch (error) {
-      console.error('Error getting user media devices', error);
-    }
-  };
-
-  const switchPeerTracks = localStream => {
-    const tracks = localStream.getTracks();
-
-    console.log({ tracks });
-
-    for (const [key, peer] of Object.entries(peerConnections)) {
-      tracks.forEach(track => {
-        const sender = peer.getSenders().find(function(s) {
-          return s.track.kind == track.kind;
-        });
-
-        console.log({ sender });
-        sender.replaceTrack(track);
-      });
-    }
-  };
-
-  const toggleScreenShare = async (enabled) => {
-    console.log('startScreenShare', enabled);
-    try {
-      let stream;
-
-      if (enabled === false) {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: true,
-        });
-      } else if (navigator.mediaDevices.getDisplayMedia) {
-        stream = await navigator.mediaDevices.getDisplayMedia({video: true});
-      }
-
-      localVideoContainer.srcObject = stream;
-      localStream = stream;
-
-      switchPeerTracks(localStream);
+      replacePeerTracks(peerConnections, localStream);
     } catch (error) {
       console.error('Error getting user media devices', error);
     }
@@ -66,37 +61,32 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
       iceServers: ICE_SERVERS,
     });
 
-    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
   
-    peerConnection.addEventListener('track', event => {
-      console.log(`recieved tracks from ${clientId}`);
-      let videoContainer = document.querySelector(`video#remoteVideo${clientId}`);
-      if (!videoContainer) {
-        videoContainer = document.createElement('video');
+    peerConnection.ontrack = event => {
+      consoleLogs && console.log(`recieved tracks from ${clientId}`);
 
-        videoContainer.id = `remoteVideo${clientId}`;
-        videoContainer.setAttribute('playinline', true);
-        videoContainer.setAttribute('muted', true);
-        videoContainer.setAttribute('autoplay', true);
-
-        remotesContainer.appendChild(videoContainer);
-      }
+      const videoContainer =
+        document.querySelector(`video#remoteVideo${clientId}`)
+        || createVideoNode(clientId, remotesContainer);
 
       if (videoContainer.srcObject !== event.streams[0]) {
         videoContainer.srcObject = event.streams[0];
       }
-    });
+    };
 
     peerConnections[clientId] = peerConnection;
     return peerConnections[clientId];
   };
 
   const sendOfferToClient = async clientId => {
-    console.log(`send offer to ${clientId}`);
     const peerConnection = await newClientPeerConnection(clientId);
 
     peerConnection.onnegotiationneeded = async event => {
-      console.log('negotiatin needed', event);
+      consoleLogs && console.log('negotiatin needed', event);
+
       const description = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(description);
 
@@ -112,6 +102,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
 
   const closeClientConnection = async clientId => {
     const videoContainer = document.querySelector(`video#remoteVideo${clientId}`);
+
     if (videoContainer) {
       videoContainer.remove();
     }
@@ -128,11 +119,16 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
     toggleScreenShare,
     closeClientConnection,
     async init() {
-      await initLocalMediaStream();
+      localStream = await cameraSource();
+      localVideoContainer.srcObject = localStream;
 
       socketInterface.listen({
+        onUserJoinedRoom: clientId => {
+          sendOfferToClient(clientId);
+        },
         onOffer: async (clientId, offer) => {
-          console.log(`recieved offer from ${clientId}`)
+          consoleLogs && console.log(`recieved offer from ${clientId}`)
+
           try {
             const peerConnection = await newClientPeerConnection(clientId);
             await peerConnection.setRemoteDescription(offer);
@@ -140,7 +136,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
 
-            console.log(`send answer to ${clientId}`);
+            consoleLogs && console.log(`send answer to ${clientId}`);
 
             socketInterface.emit('answer', {
               answerTo: clientId,
@@ -151,7 +147,8 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
           }
         },
         onAnswer: (clientId, answer) => {
-          console.log(`recieved answer from ${clientId}`);
+          consoleLogs && console.log(`recieved answer from ${clientId}`);
+
           try {
             const peerConnection = peerConnections[clientId];
             peerConnection.setRemoteDescription(answer);
@@ -160,13 +157,17 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface) {
           }
         },
         onIceCandidate: (clientId, candidate) => {
-          console.log(`recieved ice candidate from ${clientId}`)
+          consoleLogs && console.log(`recieved ice candidate from ${clientId}`)
+
           try {
             const peerConnections = peerConnections[clientId];
             peerConnection.addIceCandidate(candidate);
           } catch (error) {
             console.error('on candidate error', error);
           }
+        },
+        onUserLeftRoom: clientId => {
+          closeClientConnection(clientId);
         },
       });
     },

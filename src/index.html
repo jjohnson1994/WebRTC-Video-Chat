@@ -10,13 +10,14 @@
       </div>
     </main>
     <nav>
-      <span>
-        <input id="edtNewMessage" type="text">
-        <button id="btnSendMessage">Send</button>
-      </span>
-      <label><input id="chkScreenShare" type="checkbox" onclick="toggleScreenShare()"/>ScreenShare</label>
+      <label>
+        <input id="chkScreenShare" type="checkbox" onclick="toggleScreenShare()"/>
+        Screen Share
+      </label>
     </nav>
     <style>
+      @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro&display=swap');
+
       :root {
         --main-bg-color: #0d0b13;
         --nav-bg-color: #607D8B;
@@ -32,6 +33,8 @@
         height: 100vh;
         margin: 0;
         background-color: var(--main-bg-color);
+        font-family: 'Source Sans Pro', sans-serif;
+        color: var(--main-bg-color);
       }
 
       nav {
@@ -73,7 +76,17 @@
         localVideo,
         remotesContainer,
         {
-          listen: ({ onOffer, onAnswer, onIceCandidate }) => {
+          listen: ({
+            onUserJoinedRoom,
+            onOffer,
+            onAnswer,
+            onIceCandidate,
+            onUserLeftRoom,
+          }) => {
+            socket.on('userJoinedRoom', ({ clientId }) => {
+              onUserJoinedRoom(clientId);
+            });
+
             socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
               onIceCandidate(clientId, iceCandidate);
             });
@@ -85,23 +98,18 @@
             socket.on('answer', ({ clientId, answer }) => {
               onAnswer(clientId, answer);
             });
+
+            socket.on('userLeftRoom', ({ clientId }) => {
+              onUserLeftRoom(clientId);
+            });
           },
           emit: (event, data) => {
-            document.title = socket.id;
             socket.emit(event, data);
           },
         },
       );
 
       easyRTC.init();
-
-      socket.on('userJoinedRoom', ({ clientId }) => {
-        easyRTC.sendOfferToClient(clientId);
-      });
-
-      socket.on('userLeftRoom', ({ clientId }) => {
-        easyRTC.closeClientConnection(clientId);
-      });
 
       function toggleScreenShare() {
         const sharing = document.querySelector('#chkScreenShare').checked;
