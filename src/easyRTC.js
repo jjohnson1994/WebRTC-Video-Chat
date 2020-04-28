@@ -115,9 +115,7 @@ function EasyRTC(localVideoContainer, remotesContainer, socketInterface, console
   };
 
   return ({
-    sendOfferToClient,
     toggleScreenShare,
-    closeClientConnection,
     async init() {
       localStream = await cameraSource();
       localVideoContainer.srcObject = localStream;
