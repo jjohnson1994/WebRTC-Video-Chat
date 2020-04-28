@@ -50,13 +50,19 @@
       main {
         padding: 8px;
         flex-grow: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
       }
 
       #remotesContainer {
         display: grid;
         grid-template-rows: auto;
-        grid-template-columns: repeat(3, 33%);
+        grid-template-columns: repeat(2, minmax(0px, 1fr));
         grid-gap: 8px;
+        max-width: 80vw;
+        max-height: 95vh;
       }
 
       video {
@@ -115,6 +121,22 @@
         const sharing = document.querySelector('#chkScreenShare').checked;
         easyRTC.toggleScreenShare(sharing);
       }
+
+      new MutationObserver(() => {
+        const grid = document.querySelector('#remotesContainer');
+        const itemCount = grid.children.length;
+        const rows = Math.floor(Math.sqrt(itemCount));
+        const cols = Math.ceil(itemCount / rows);
+
+        grid.setAttribute(
+          "style",
+          `
+            grid-template-rows: repeat(${rows}, 1fr);
+            grid-template-columns: repeat(${cols}, 1fr);
+          `
+        );
+      })
+        .observe(document.querySelector('#remotesContainer'));
     </script>
   </body>
 </html>

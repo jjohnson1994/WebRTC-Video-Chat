@@ -11,7 +11,6 @@ app.get('/easyRTC.js', (req, res) => {
 });
 
 io.on('connection', (socket) => {
-
   socket.broadcast.emit('userJoinedRoom', {
     clientId: socket.id,
   });
