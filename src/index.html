@@ -14,6 +14,10 @@
         <input id="chkScreenShare" type="checkbox" onclick="toggleScreenShare()"/>
         Screen Share
       </label>
+      <span>
+        <input id="edtNewMessage" type="text"/>
+        <button id="btnSendMessage">Send</button>
+      </span>
     </nav>
     <style>
       @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro&display=swap');
@@ -78,7 +82,7 @@
       const localVideo = document.getElementById('localVideo');
       const remoteVideo = document.getElementById('remoteVideo');
       
-      const easyRTC = new EasyRTC(
+      const easyRTC = new EasyRTC.VideoChatRoom(
         localVideo,
         remotesContainer,
         {
@@ -136,7 +140,7 @@
           `
         );
       })
-        .observe(document.querySelector('#remotesContainer'));
+        .observe(document.querySelector('#remotesContainer'), { childList: true });
     </script>
   </body>
 </html>
