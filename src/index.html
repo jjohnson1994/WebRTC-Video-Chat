@@ -82,48 +82,41 @@
       const localVideo = document.getElementById('localVideo');
       const remoteVideo = document.getElementById('remoteVideo');
       
-      const easyRTC = new EasyRTC.VideoChatRoom(
-        localVideo,
-        remotesContainer,
-        {
-          listen: ({
-            onUserJoinedRoom,
-            onOffer,
-            onAnswer,
-            onIceCandidate,
-            onUserLeftRoom,
-          }) => {
-            socket.on('userJoinedRoom', ({ clientId }) => {
-              onUserJoinedRoom(clientId);
-            });
-
-            socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
-              onIceCandidate(clientId, iceCandidate);
-            });
-
-            socket.on('offer', ({ clientId, offer }) => {
-              onOffer(clientId, offer);
-            });
-
-            socket.on('answer', ({ clientId, answer }) => {
-              onAnswer(clientId, answer);
-            });
-
-            socket.on('userLeftRoom', ({ clientId }) => {
-              onUserLeftRoom(clientId);
-            });
-          },
-          emit: (event, data) => {
-            socket.emit(event, data);
-          },
+      const videoChatRoom = EasyRTC.VideoChatRoom({
+        localVideoContainer: localVideo,
+        remotesContainer: remotesContainer,
+        eventEmitter: (event, data) => {
+          socket.emit(event, data);
         },
-      );
+        onError: console.error,
+        onLog: console.log,
+      });
 
-      easyRTC.init();
+      socket.on('userJoinedRoom', ({ clientId }) => {
+        videoChatRoom.onUserJoinedRoom(clientId);
+      });
+
+      socket.on('iceCandidate', ({ clientId, iceCandidate }) => {
+        videoChatRoom.onIceCandidate(clientId, iceCandidate);
+      });
+
+      socket.on('offer', ({ clientId, offer }) => {
+        videoChatRoom.onOffer(clientId, offer);
+      });
+
+      socket.on('answer', ({ clientId, answer }) => {
+        videoChatRoom.onAnswer(clientId, answer);
+      });
+
+      socket.on('userLeftRoom', ({ clientId }) => {
+        videoChatRoom.onUserLeftRoom(clientId);
+      });
+
+      videoChatRoom.init();
 
       function toggleScreenShare() {
         const sharing = document.querySelector('#chkScreenShare').checked;
-        easyRTC.toggleScreenShare(sharing);
+        videoChatRoom.toggleScreenShare(sharing);
       }
 
       new MutationObserver(() => {
